@@ -24,5 +24,61 @@
 - The earliest static analysis tools leveraged lexical analysis. One of the ways to increase percision of detecting vulnerabilities is via leveraging more techniques common in compiler theory, such as parsing and abstract syntax trees (AST). One of the most popular static analysis methods: *data flow analysis with taint analysis*
 - After the code is scanned for tokens, it can be built into a more abstract representation that will make it easier to query the code. One of the common approaches is to parse the code into a [parse tree](https://en.wikipedia.org/wiki/Parse_tree) and build an [abstract syntax tree](https://en.wikipedia.org/wiki/Abstract_syntax_tree)
 - An AST is a tree representation of source code, in which each node has a type that it represents and that allows us to take into account the semantics. Example: one type could be a call to a method, which would be represented as a node in the tree, and its qualifier and arguments will be represented as child nodes. AST makes it easier to query the code for what we need in an analysis
+- *Example*
+    - Code
+        ```
+        1. from django.db import connection
+        2. 
+        3. def show_user(request, username):
+        4.     with connection.cursor() as cursor:
+        5.         cursor.execute("SELECT * FROM users WHERE username = '%s'" % username)
+        ```
+    - AST (simplified version)
+        ```
+        Module
+        |
+        |---- ImportFrom, on line 1
+        |     |
+        |     +---- alias, on line 1
+        |
+        +---- FunctionDef, on line 3, show_user
+              |
+              |---- arguments
+              |     |
+              |     |---- arg, on line 3, request
+              |     |
+              |     +---- arg, on line 3, username
+              |
+              +---- With, on line 4
+                    |
+                    |---- withitem
+                    |     |
+                    |     |---- Call, on line 4
+                    |     |     |
+                    |     |     +---- Attribute, on line 4, connection.cursor
+                    |     |           |
+                    |     |           +---- Name, on line 4, connection
+                    |     |
+                    |     +---- Name, on line 4, cursor
+                    |
+                    +---- Expr, on line 5
+                          |
+                          +---- Call, on line 5
+                          |     |
+                          |     |---- Attribute, on line 5, cursor.execute
+                          |     |
+                          |     +---- Name, on line 5, cursor
+                          |
+                          +---- BinOp, on line 5
+                                |
+                                |---- Constant, on line 5, SELECT * FROM users WHERE username = '%s'
+                                |
+                                +---- Name, on line 5, username
+        ```
+    - One type could be a call to a method. We can see the node `Call, on line 5`, which is a call to a method with its qualifier (`cursor.execute`) and arguments (here the argument list is empty) represented as child nodes
+- With the AST of the source code, we could query for all the nodes representing method calls to `execute` from the `django.db` library. That would return only method calls to `execute`, not any other types that we might not be interested in. Then, we could query for all method calls to `execute` that do not take a string literal as an argument. That would exclude the calls from the results that use plain strings - so the ones that do not use any potentially unsafe data
+- To make our analysis even more accurate, we can use another representation of source code called *Control Flow Graph (CFG)*. A control flow graph describes the flow of control, that is the order in which the AST nodes are evaluated in all possible runs of a program, where each node corresponds to a primitive statement in the program. These primitive statements include assignments and conditions. Edges going out from a node denote a possible successor of that statement in the same run of the program. With CFG, we can track how the code flows throughout the program and perform further analysis
+### Data flow analysis and taint tracking
+
 ### Static analysis
 - A process that allows us to analyze an application's code for potential errors without executing the code itself
