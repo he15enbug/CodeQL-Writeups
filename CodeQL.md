@@ -138,3 +138,43 @@
 ## QL query language—writing your own CodeQL query
 - Query the CodeQL database and write our own CodeQL queries using QL
 - We can query the CodeQL DB for syntactic elements, such as AST nodes (e.g., a function call or a function definition), and for semantic elements, such as the nodes in the data flow graph of a program. The data flow graph is one of the structures that CodeQL creates on top of the AST and contains information about the data flow within a program. With data flow graph, we can query if there is a connection between, e.g., a source and a SQL injection sink
+- Example questions:
+    - Show me all function calls
+    - Show me all function calls called `eval`
+    - Show me all function definitions for functions called `eval`
+    - Show me all method calls to methods called `execute`defined within the `django.db` library that do not take a string literal as input
+### Basic CodeQL query
+- The basic syntax and structure of a CodeQL query resembles SQL and consists of three statements: `from`, `where`, and `select`
+- `from` defines the types and variables that are going to be queried
+- `where` defines conditions on these variables in the form of a logical formula. Can be omitted if there is no condition
+- `select` defines the output of the query
+- Example: ask CodeQL for all function calls in a Python codebase
+    ```
+    import python
+
+    from Call c
+    where c.getLocation().getFile().getRelativePath().regexpMatch("2/challenge-1/.*")
+    select c, "This is a function call"
+    ```
+### Refining a QL query
+- Look for all function calls to `eval`
+    ```
+    1. import python
+    2.
+    3. from Call c, Name name
+    4. where name.getId() = "eval" and
+    5. c.getFunc() = name and
+    6. c.getLocation().getFile().getRelativePath().regexpMatch("2/challenge-1/.*")
+    7. select c
+    ```
+- QL is a logical language: it allows for specifying logic conditions for patterns in code using common logical operators `and`, `or`, `not`. It is also a declarative language: order for specifying conditions does not matter
+- The `Name` type refers to variables and it contains their name. In some languages, such as Python, every named entity is a variable. In the `eval()` example, `eval` is a variable read, and `()` is the call operator. In this context we are calling whatever function is held by the `eval` variable. We can think of `Name` as a variable read expression
+- `c.getFunc() = name`: call the `getFunc()` operation on `c` to get the callable of the call, so the function itself. Then, we restrict it with the value of the `name` variable (which we restricted to `eval` using `name.getId() = "eval"`)
+- These "operations" we called on the variables are called *predicates* (to be more precise - built-in predicates) and are similar to functions
+
+## Challenges
+### Challenge-2
+- [Instructions](https://github.com/GitHubSecurityLab/codeql-zero-to-hero/blob/main/2/challenge-2/instructions.md)
+- We use Option A: GitHub Codespace
+- Open the Command Palette with `Ctrl+Shift+P` and type `CodeQL: Create Query`, select language (`Python`) and repository (`GitHubSecurityLab/codeql-zero-to-hero`)
+- We will be able to write CodeQL for Python queries inside the folder `codeql-custom-queries-python` that was generated
