@@ -96,7 +96,45 @@
         - Flow sensitive or flow insensitive
         - Safe or unsafe
         - For more about the analyses, read ["Source Code Analysis: A Road Map" by David Binkley](https://ieeexplore.ieee.org/document/4221615?arnumber=4221615)
-# CodeQL Introduction
+# CodeQL
 - [CodeQL](https://codeql.github.com/) is a static anlysis tool that can be used to automatically scan our applications for vulnerabilities and to assist with a manual code review. It uses data flow analysis and taint analysis methods
 - [Documentation](https://codeql.github.com/docs/)
 - [CodeQL zero to hero part 2: getting started with CodeQL](https://github.blog/2023-06-15-codeql-zero-to-hero-part-2-getting-started-with-codeql/)
+- Supported languages: C/C++, C#, Go, Java, Kotlin, JavaScript, Python, Ruby, TypeScript, and Swift
+## Common uses of CodeQL for security research and application security
+- Uses for CodeQL
+    1. Automated scanning of source code for [hundreds of vulnerability types](https://codeql.github.com/codeql-query-help/full-cwe/)
+    2. Variant analysis. If a vulnerability has been found in my code base, for example, SQL injection, I can use CodeQL to see if there are other cases of the same vulnerability in a different part of the codebase.
+    3. Assistance during manual code review. We can “ask CodeQL questions” about the analyzed codebase, for example:
+        1. What is my attack surface? Where should I start my audit?
+        2. What are the sources (unsafe user-supplied input) and sinks (dangerous functions) in my code base?
+        3. Do the sources end up in any dangerous or untrusted functionality?
+## Introduction
+- The **key idea** behind CodeQL is that it analyzes code as data by creating a database of facts about the program and then using a special query language, called QL, to query the database for vulnerable patterns. QL is an expressive, declarative, logical query language for identifying patterns in the database, that is vulnerabilities, for example, SQL injection
+## Code scanning with CodeQL
+- Enabling the [code scanning with CodeQL GitHub Action](https://docs.github.com/en/code-security/code-scanning/introduction-to-code-scanning/about-code-scanning)
+## CodeQL databases
+- A CodeQL database is created automatically when we enable the code scanning with CodeQL action on a repository. But what if we would like to modify a query or query for specific artifacts ourselves?
+- At high level, the process works as follows: for each language CodeQL extracts the source code, converting it to understand it either by parsing the code directly or by instrumenting executions of a compiler that already exists for that language within a running build. The database itself is a relational representation of the code base, which contains information about the different source code elements, such as classes and functions, and puts each of those into a separate table of data. Each language has its own database schema, but generally there is a table for classes, a table for functions and so on, and relationships between these tables. CodeQL standard libraries for each language provide wrappers and layers around that database schema. We use the QL query language to query these tables and relationships
+- CodeQL databases already exist for many of the most popular open source projects on GitHub, they are available to download by using the CodeQL extension in VS Code or GitHub via the [GitHub API](https://docs.github.com/en/code-security/codeql-cli/getting-started-with-the-codeql-cli/preparing-your-code-for-codeql-analysis#downloading-databases-from-githubcom). But if it happens that a CodeQL database is not available for an open source repository, requesting it will trigger an attempt for database creation
+- We can also create a CodeQL database ourselves locally, using the [CodeQL command line tool](https://docs.github.com/en/code-security/codeql-cli/getting-started-with-the-codeql-cli/about-the-codeql-cli). The easiest way to install the CodeQL CLI locally is as an extension to the [`gh`](https://github.com/cli/cli) CLI
+### Create CodeQL database using CodeQL CLI locally
+#### Install CodeQL CLI
+1. Install `gh`: `winget install --id GitHub.cli` (on Windows). The Windows installer modifies the `PATH`, when using Windows terminal, we will need to open a new window for the changes to take effect. [More instructions](https://github.com/cli/cli#installation)
+2. The first time we use it, we need to login `gh auth login`
+3. Install the CodeQL extension
+    ```
+    gh extensions install github/gh-codeql
+    gh codeql install-stub
+    ```
+#### Create a CodeQL database
+1. Clone the example repo: `git clone https://github.com/GitHubSecurityLab/codeql-zero-to-hero.git`
+2. Move to the cloned directory: `cd codeql-zero-to-hero/`
+3. Create a CodeQL database: `gh codeql database create example-codeql-db --language=python`, and wait
+4. Deactivate the virtual environment: `deactivate`
+5. Go to the VS Code CodeQL extension, click on the "Choose Database from folder" icon and select the "example-codeql-db" that we created in previous step
+
+
+## QL query language—writing your own CodeQL query
+- Query the CodeQL database and write our own CodeQL queries using QL
+- We can query the CodeQL DB for syntactic elements, such as AST nodes (e.g., a function call or a function definition), and for semantic elements, such as the nodes in the data flow graph of a program. The data flow graph is one of the structures that CodeQL creates on top of the AST and contains information about the data flow within a program. With data flow graph, we can query if there is a connection between, e.g., a source and a SQL injection sink
