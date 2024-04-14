@@ -172,6 +172,54 @@
 - `c.getFunc() = name`: call the `getFunc()` operation on `c` to get the callable of the call, so the function itself. Then, we restrict it with the value of the `name` variable (which we restricted to `eval` using `name.getId() = "eval"`)
 - These "operations" we called on the variables are called *predicates* (to be more precise - built-in predicates) and are similar to functions
 
+### Predicates
+- A QL predicate is like a mini from-where-select query - it encapsulates a portion of a logic in a program, so it can be reused. For example, the built-in predicate `getFunc()` on the `Call` type returns the callable. As an example, querying for a call gives us `eval("some code")`, which `call.getFunc()` gives us just `eval`. We can create our own predicates - we could, for example, create a predicate to **encapsulate** the logic from the query above
+    ```
+    import python
+
+    predicate isEvalCall(Call c, Name name) {
+        c.getFunc() = name and
+        name.getId() = "eval"
+    }
+
+    from Call c, Name name
+    where isEvalCall(c, name) and c.getLocation().getFile().getRelativePath().regexpMatch("2/challenge-1/.*")
+    select c, "call to 'eval'."
+    ```
+- Note that predicates names must start with a lowercase character and it’s recommended to use camelCase casing
+- There exist also [member predicates](https://codeql.github.com/docs/ql-language-reference/types/#member-predicates), which are predicates that only apply to members of a particular class and require casting to that specific class (it's a bit more advanced topic)
+### Classes
+- QL is an object-oriented language. It allows for creating classes and use of object-oriented type patterns like inheritance, encapsulation and composition
+- Classes allow us to define new types in CodeQL. Like all types, they describe sets of values. We can define a new CodeQL class to represent a set of function calls to functions named `eval`
+    ```
+    import python
+
+    class EvalCall extends Call {
+        EvalCall() {
+            exists(Name name |
+            this.getFunc() = name |
+            name.getId() = "eval")
+        }
+    }
+
+    from Call c
+    where c instanceof EvalCall and c.getLocation().getFile().getRelativePath().regexpMatch("2/challenge-1/.*")
+    select c, "call to 'eval'."
+    ```
+- In the characteristic predicate, our conditions include the variable name of type `Name`, which we don’t have defined in our new `EvalCall` class. For these cases, we can introduce the `exists()` construct, which allows us to define local variables. We first define the local variables, then separate them from the conditions with a pipe `|`. All next conditions are can be separated by a pipe or an `and` — the form looks like this `exists( | | )`.
+- [More information about `exists()`](https://codeql.github.com/docs/ql-language-reference/formulas/#exists)
+- Abstract structure
+    ```
+    class <name> extends <type> {
+        <characteristic predicate>() {
+        }
+    }
+    ```
+- If we don’t know the type that I am looking for, we can look at the Abstract Syntax Tree of the code you want to query for
+### Taint tracking configuration
+- Until now, we have queried only for syntactic elements (for example, functions or function calls). It was mentioned before that CodeQL allows to track data flow and taint through an application
+- It does so by the so-called "taint tracking configuration" in which the user defines the sources, the sinks and then calls a predicate that checks if there is a path from the source to the sink. There's also a possibility to define sanitizers, which would stop the data flow and not report a vulnerability, in case this sanitizer is found on its path
+
 ## Challenges
 ### Challenge-2
 - [Instructions](https://github.com/GitHubSecurityLab/codeql-zero-to-hero/blob/main/2/challenge-2/instructions.md)
